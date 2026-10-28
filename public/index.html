@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pune Waste Routes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+<script>
+  /* Apply the saved theme before the page paints, so there is no flash. */
+  try { var t = localStorage.getItem('pwr-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+</script>
+</head>
+<body>
+<div class="app">
+
+  <aside class="side" aria-label="Towns, trucks and settings">
+    <header class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none"><path d="M7 22c0-7 9-3 9-9s9-1 9-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3" fill="currentColor"/><circle cx="25" cy="7" r="3" fill="currentColor"/></svg>
+      </div>
+      <div class="brand-text">
+        <h1>Pune Waste Routes</h1>
+        <p>Daily collection planner</p>
+      </div>
+      <div class="engine wait" id="status" role="status"><i></i><span>Connecting</span></div>
+    </header>
+
+    <div class="kpis" id="kpis">
+      <div class="kpi"><b id="kDist">0</b><small>km today</small></div>
+      <div class="kpi"><b id="kTrucks">0</b><small>trucks</small></div>
+      <div class="kpi"><b id="kSaved">0</b><small>% km saved</small></div>
+      <div class="kpi"><b id="kStops">0</b><small id="kStopsLbl">towns</small></div>
+    </div>
+
+    <label class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="search" type="search" placeholder="Search towns or talukas" autocomplete="off" aria-label="Search towns">
+      <kbd>/</kbd>
+    </label>
+
+    <div class="controls">
+      <div class="sel">
+        <label for="show">Show me:</label>
+        <select id="show">
+          <option value="all">All towns</option>
+          <option value="collected">On today's run</option>
+          <option value="skipped">Skipped today</option>
+          <option value="risk">Nearly full (80%+)</option>
+        </select>
+      </div>
+      <div class="sel">
+        <label for="sort">Sort by:</label>
+        <select id="sort">
+          <option value="fill">Fullest first</option>
+          <option value="route">Route order</option>
+          <option value="yard">Nearest the yard</option>
+          <option value="bins">Most bins</option>
+          <option value="name">Name</option>
+        </select>
+      </div>
+      <button class="btn-filters" id="filtersBtn" type="button" aria-expanded="false" aria-controls="drawer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="15" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        Filters
+      </button>
+    </div>
+
+    <div class="drawer" id="drawer">
+      <div class="drawer-in" id="drawerIn" inert>
+        <div class="drawer-body">
+          <div>
+            <div class="cap">Routing method</div>
+            <div class="pills" id="algoSeg"></div>
+          </div>
+          <div class="slider">
+            <div class="row"><label class="cap" for="thr">Collect when bin is at least</label><output id="thrVal" for="thr">50%</output></div>
+            <input type="range" id="thr" min="0" max="90" step="5" value="50">
+          </div>
+          <div class="slider">
+            <div class="row"><label class="cap" for="cap">Truck capacity</label><output id="capVal" for="cap">10 t</output></div>
+            <input type="range" id="cap" min="8" max="20" step="1" value="10">
+          </div>
+          <div class="row">
+            <button class="btn primary" id="newDay" type="button">New day's fill levels</button>
+            <span class="day mono" id="dayLbl">Day 1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabs" id="tabs" role="tablist" aria-label="Sidebar views">
+      <span class="tab-ink" id="tabInk"></span>
+      <button role="tab" id="tab-towns" aria-selected="true" aria-controls="panel-towns" data-tab="towns" type="button">Towns</button>
+      <button role="tab" id="tab-trucks" aria-selected="false" aria-controls="panel-trucks" data-tab="trucks" type="button" tabindex="-1">Trucks</button>
+      <button role="tab" id="tab-compare" aria-selected="false" aria-controls="panel-compare" data-tab="compare" type="button" tabindex="-1">Compare</button>
+    </div>
+
+    <div class="panels" id="panels">
+      <section id="panel-towns" role="tabpanel" aria-labelledby="tab-towns">
+        <ul class="list" id="list"></ul>
+        <p class="empty" id="listEmpty" hidden>No towns match. Clear the search or change the filter.</p>
+      </section>
+      <section id="panel-trucks" role="tabpanel" aria-labelledby="tab-trucks" hidden>
+        <div class="trucks" id="trucks"></div>
+      </section>
+      <section id="panel-compare" role="tabpanel" aria-labelledby="tab-compare" hidden>
+        <div class="compare" id="compare"></div>
+      </section>
+    </div>
+  </aside>
+
+  <main class="mapwrap" id="mapwrap">
+    <canvas id="terrain" aria-hidden="true"></canvas>
+    <svg id="map" aria-hidden="true">
+      <defs>
+        <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur id="glowBlur" stdDeviation="1" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <path id="roadCase"/>
+      <path id="roadLine"/>
+      <g id="gRoutes"></g>
+    </svg>
+    <div class="markers" id="markers"></div>
+    <div class="popup" id="popup" hidden></div>
+
+    <div class="truck-chips" id="chips" aria-label="Truck routes"></div>
+
+    <div class="tools">
+      <button class="tool" id="zin" type="button" aria-label="Zoom in" title="Zoom in"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+      <button class="tool" id="zout" type="button" aria-label="Zoom out" title="Zoom out"><svg viewBox="0 0 24 24"><path d="M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+      <button class="tool" id="zfit" type="button" aria-label="Fit the whole district" title="Fit the whole district"><svg viewBox="0 0 24 24" fill="none"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="tool" id="labelsBtn" type="button" aria-label="Always show town names" aria-pressed="false" title="Always show town names"><span>Aa</span></button>
+      <button class="tool" id="theme" type="button" aria-label="Switch between night and day map" title="Night or day map">
+        <svg class="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="currentColor"/></svg>
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="dock" id="dock">
+      <button class="play idle" id="play" type="button" aria-label="Play the day" title="Play the day (Space)"></button>
+      <div class="clock"><b id="clock" class="mono">06:00</b><small id="clockSub">Trucks ready at the yard</small></div>
+      <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Time of day">
+      <button class="speed mono" id="speed" type="button" title="Playback speed">1 h/s</button>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <div class="offline" id="offline" hidden>
+      <div class="offline-card">
+        <h2>Can't reach the C++ server</h2>
+        <p>Start it from the project folder with <b>./server</b> (<b>server.exe</b> on Windows), then this page connects by itself.</p>
+        <button class="btn primary" id="retry" type="button">Try again now</button>
+      </div>
+    </div>
+  </main>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>
